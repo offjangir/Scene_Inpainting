@@ -1,0 +1,39 @@
+# ============ SD 1.5 Inpainting ControlNet Inference Config ============
+# Inference configuration for trained ControlNet inpainting model
+
+# Model paths
+# Option 1: Specify exact checkpoint path
+controlnet_path: null  # Set to specific checkpoint path, or leave null to use checkpoint_dir
+
+# Option 2: Use checkpoint directory (recommended)
+checkpoint_dir: /data/group_data/katefgroup/datasets/yjangir/3d_inpaint/checkpoint_sd15_inpaint
+checkpoint_epoch: latest  # "latest", "final", or specific epoch number like "840"
+
+base_model: runwayml/stable-diffusion-v1-5
+use_pt_format: false  # Set to true if loading from .pt checkpoint instead of diffusers format
+
+# Input/Output (for single image inference)
+image_path: null  # Path to input image (for single inference)
+mask_path: null   # Path to mask image (for single inference)
+output_path: output.png
+
+# Batch inference (use either single or batch, not both)
+input_dir: /data/user_data/yjangir/3d_inpainting/data_generated  # Input directory (for batch inference)
+output_dir: results  # Output directory (for batch inference)
+
+# Inference parameters
+num_inference_steps: 20  # Number of denoising steps (20 for fast, 50 for high quality)
+guidance_scale: 7.5      # Classifier-free guidance scale
+seed: 42                 # Random seed for reproducibility
+size: 512                # Image size (SD 1.5 optimized for 512x512)
+
+# Data parameters (matching training config)
+invert_mask: false       # false = 1 is hole, 0 is valid (matches training)
+image_suffix: _target.png
+mask_suffix: _cond.png   # For data_generated: sample_mask_cond.png
+cond_suffix: _cond.png
+file_prefix: sample_     # Prefix for filenames (e.g., "sample_" for data_generated directory)
+
+# Device
+device: null  # Auto-detect (cuda/cpu)
+

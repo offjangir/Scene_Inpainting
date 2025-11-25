@@ -95,6 +95,70 @@ def apply_cam_yaw(T_w2c, degrees):
     T_tgt[:3, 3] = t
     return T_tgt
 
+
+def apply_cam_transform(T_w2c, yaw_deg=0.0, pitch_deg=0.0, roll_deg=0.0, 
+                       translate_x=0.0, translate_y=0.0, translate_z=0.0):
+    """
+    Apply full 6-DOF transformation to camera in camera coordinates.
+    
+    Args:
+        T_w2c: (4,4) world→cam extrinsic matrix
+        yaw_deg: rotation around Y axis (left/right)
+        pitch_deg: rotation around X axis (up/down)
+        roll_deg: rotation around Z axis (tilt)
+        translate_x: translation along camera X axis (right)
+        translate_y: translation along camera Y axis (down)
+        translate_z: translation along camera Z axis (forward)
+    
+    Returns:
+        T_tgt: (4,4) transformed world→cam extrinsic
+    """
+    R, t = T_w2c[:3, :3], T_w2c[:3, 3]
+    
+    # Convert angles to radians
+    yaw = np.deg2rad(yaw_deg)
+    pitch = np.deg2rad(pitch_deg)
+    roll = np.deg2rad(roll_deg)
+    
+    # Rotation matrices in camera coordinates
+    # Yaw (Y-axis rotation)
+    R_yaw = np.array([
+        [np.cos(yaw),  0, np.sin(yaw)],
+        [0,            1, 0          ],
+        [-np.sin(yaw), 0, np.cos(yaw)]
+    ], dtype=np.float32)
+    
+    # Pitch (X-axis rotation)
+    R_pitch = np.array([
+        [1, 0,              0             ],
+        [0, np.cos(pitch), -np.sin(pitch)],
+        [0, np.sin(pitch),  np.cos(pitch)]
+    ], dtype=np.float32)
+    
+    # Roll (Z-axis rotation)
+    R_roll = np.array([
+        [np.cos(roll), -np.sin(roll), 0],
+        [np.sin(roll),  np.cos(roll), 0],
+        [0,             0,            1]
+    ], dtype=np.float32)
+    
+    # Combined rotation: apply roll, then pitch, then yaw
+    R_delta = R_yaw @ R_pitch @ R_roll
+    R_tgt = R @ R_delta
+    
+    # Translation in camera coordinates
+    t_delta = np.array([translate_x, translate_y, translate_z], dtype=np.float32)
+    # Transform translation to world coordinates and apply
+    t_tgt = t + R @ t_delta
+    
+    # Construct output transformation
+    T_tgt = np.eye(4, dtype=np.float32)
+    T_tgt[:3, :3] = R_tgt
+    T_tgt[:3, 3] = t_tgt
+    
+    return T_tgt
+
+
 def rasterize_points_world(pts_world, colors01, K, T_w2c, w, h, z_clip=1e-4):
     """
     Vectorized z-buffer rasterization from world points.
@@ -327,6 +391,77 @@ def overlay_mask(image01, mask, color=(1.0, 0.0, 0.0), alpha=0.35):
     m = mask.astype(bool)
     overlay[m] = (1 - alpha) * overlay[m] + alpha * color_arr
     return np.clip(overlay, 0, 1)
+
+def generate_warped_images(
+    image_path, depth_path, K_path, T_src_w2c_path, T_tgt_w2c_path=None,
+    ply_path=None, yaw_deg=30.0
+):
+    """
+    Generate forward and backward warped images.
+    
+    Args:
+        image_path: Path to source RGB image
+        depth_path: Path to depth map (.npy)
+        K_path: Path to camera intrinsics (.npy)
+        T_src_w2c_path: Path to source world-to-camera transform (.npy)
+        T_tgt_w2c_path: Path to target world-to-camera transform (.npy), optional
+        ply_path: Path to point cloud (.ply), optional (uses this instead of depth if provided)
+        yaw_deg: Yaw angle in degrees for target view (if T_tgt_w2c_path not provided)
+    
+    Returns:
+        src_rgb: Source RGB image (H, W, 3) in [0, 1]
+        img_fwd: Forward warped image at source pose (H, W, 3) in [0, 1]
+        img_bwd: Backward warped image at target pose (H, W, 3) in [0, 1]
+        mask_fwd: Mask for forward warp (H, W) binary
+        mask_bwd: Mask for backward warp (H, W) binary
+        pts_world: World points (N, 3)
+        colors: Point colors (N, 3)
+    """
+    # Load intrinsics
+    K = np.load(K_path).astype(np.float32)
+    fx, fy, cx, cy = K[0,0], K[1,1], K[0,2], K[1,2]
+    H = int(cy*2) if cy*2 > 0 else 512
+    W = int(cx*2) if cx*2 > 0 else 512
+    
+    # Load extrinsics
+    T_src_w2c = np.load(T_src_w2c_path).astype(np.float32)
+    if T_src_w2c.shape == (3,4):
+        E = np.eye(4, dtype=np.float32)
+        E[:3,:4] = T_src_w2c
+        T_src_w2c = E
+        
+    if T_tgt_w2c_path is not None:
+        T_tgt_w2c = np.load(T_tgt_w2c_path).astype(np.float32)
+        if T_tgt_w2c.shape == (3,4):
+            E = np.eye(4, dtype=np.float32)
+            E[:3,:4] = T_tgt_w2c
+            T_tgt_w2c = E
+    else:
+        T_tgt_w2c = apply_cam_yaw(T_src_w2c, yaw_deg)
+    
+    # Build world points
+    if ply_path is not None:
+        pcd = o3d.io.read_point_cloud(ply_path)
+        if len(pcd.colors) == 0:
+            pcd.paint_uniform_color([1,1,1])
+        pts_world = np.asarray(pcd.points).astype(np.float32)
+        cols = np.asarray(pcd.colors).astype(np.float32)
+        if cols.max() > 1.0:
+            cols = cols / 255.0
+        src_rgb, _ = rasterize_points_world(pts_world, cols, K, T_src_w2c, W, H)
+    else:
+        rgb = read_image(image_path).float() / 255.0
+        if rgb.shape[0] == 1:
+            rgb = rgb.repeat(3,1,1)
+        src_rgb = rgb.permute(1,2,0).numpy()
+        depth = np.load(depth_path).astype(np.float32)
+        pts_world, cols = depth_to_points(depth, src_rgb, K, T_src_w2c)
+    
+    # Render forward and backward
+    img_fwd, mask_fwd = rasterize_points_world(pts_world, cols, K, T_src_w2c, W, H)
+    img_bwd, mask_bwd = rasterize_points_world(pts_world, cols, K, T_tgt_w2c, W, H)
+    
+    return src_rgb, img_fwd, img_bwd, mask_fwd, mask_bwd, pts_world, cols
 
 # ============================================================
 # === Core visualization =====================================

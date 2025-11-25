@@ -1,0 +1,1 @@
+for video in *.mp4 *.avi *.mov *.mkv *.webm *.flv *.wmv *.m4v 2>/dev/null; do [ -f "$video" ] && ffmpeg -i "$video" -vf "fps=10,scale=640:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" -loop 0 -y "${video%.*}.gif"; done

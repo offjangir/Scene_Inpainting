@@ -1,0 +1,60 @@
+# ============ SDXL Inpainting Fine-Tune Config (A6000 Optimized) ============
+# Training for ~5k steps to match the paper (350 samples, batch_size=4 → 88 steps/epoch)
+# 5000 steps ÷ 88 steps/epoch ≈ 57 epochs
+
+train:
+  epochs: 1000                   # ~5k steps (5016 steps total) to match the paper
+  batch_size: 4                # fits easily at 512x512 with fp16
+  lr: 0.00001                  # 1e-5 learning rate (lower for finetuning, use 5e-5 for scratch)
+  weight_decay: 0.01           # weight decay for AdamW
+  use_scheduler: true          # use cosine annealing LR scheduler
+  min_lr: 1.0e-7               # minimum learning rate
+  num_workers: 8               # faster data loading
+  save_every: 1               # save every 10 epochs (~880 steps)
+  output_dir: /data/group_data/katefgroup/datasets/yjangir/3d_inpaint/checkpoint_more_data/
+  mixed_precision: fp16        # fp16 is optimal for A6000
+
+data:
+  root: ./dataset_bridge
+  test_root: ./test_data
+  image_suffix: _target.png
+  cond_suffix: _cond.png
+  mask_suffix: _mask.png
+  size: 512                    # keep consistent resolution
+  invert_mask: false            # invert mask if your data has 0=hole, 1=valid
+
+# Validation Configuration
+validation:
+  validate_every: 10            # validate every 5 epochs (~440 steps)
+  num_samples: 4               # generate 4 validation samples
+  num_inference_steps: 20      # fast inference (20 steps)
+  guidance_scale: 7.5          # classifier-free guidance scale
+
+model:
+  pretrained_model: stabilityai/stable-diffusion-xl-base-1.0
+  scheduler: DDIMScheduler
+  cpu_offload: false           # disable since A6000 has ample VRAM
+  
+  # Pretrained ControlNet (optional) - set to null to train from scratch
+  # NOTE: Native 4-channel (image+mask) ControlNets for SDXL are rare.
+  #       Using 3-channel pretrained → automatically expands to 4 channels.
+  #       The code copies RGB weights and initializes the mask channel.
+  # 
+  # Recommended for your inpainting task:
+  #   ✅ diffusers/controlnet-canny-sdxl-1.0     (BEST - edges similar to masks)
+  #   ✅ xinsir/controlnet-union-sdxl-1.0        (multi-task, very robust)
+  #   - diffusers/controlnet-depth-sdxl-1.0     (depth maps)
+  #   - diffusers/controlnet-scribble-sdxl-1.0  (sketches)
+  #   - null                                     (train from scratch, lr=5e-5)
+  pretrained_controlnet: diffusers/controlnet-canny-sdxl-1.0  # Expands 3→4 channels automatically
+
+logging:
+  print_every: 25              # more frequent feedback
+  seed: 42                     # same seed for reproducibility
+  wandb_project: controlnet-mask-inpainting
+  wandb_run_name: sdxl-controlnet-5k
+  wandb_resume: allow
+
+evaluation:  
+  num_inference_steps: 50
+  guidance_scale: 7.5

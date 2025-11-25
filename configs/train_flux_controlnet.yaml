@@ -1,0 +1,47 @@
+model:
+  flux_variant: black-forest-labs/FLUX.1-dev  # Use FLUX.1-dev (required for Alibaba inpainting ControlNet)
+  
+  # 🎯 PRETRAINED INPAINTING CONTROLNET (RECOMMENDED!)
+  # alimama-creative/FLUX.1-dev-Controlnet-Inpainting-Beta
+  # 
+  # ✅ Specifically trained for inpainting (15M images)
+  # ✅ Native 4-channel support (RGB + mask) - perfect match!
+  # ✅ 1024x1024 resolution optimized
+  # ✅ Production-ready from Alibaba Alimama Creative team
+  # 
+  # Alternative options:
+  #   - InstantX/FLUX.1-dev-Controlnet-Union  (multi-task, 3ch → expand to 4ch)
+  #   - null                                    (train from scratch - lightweight)
+  pretrained_controlnet: alimama-creative/FLUX.1-dev-Controlnet-Inpainting-Beta
+
+data:
+  root:  ./dataset_bridge           # Your 3D scene dataset
+  size: 1024
+  image_suffix: image_target.png    # original clean view (TARGET to generate)
+  cond_suffix: image_cond.png       # warped/masked view (CONDITIONING input)
+  mask_suffix: mask_cond.png        # mask (combined with warped view for conditioning)
+
+train:
+  batch_size: 1                    # Flux is large, batch_size=1 for A100 80GB
+  num_workers: 8                   # More workers for faster data loading
+  epochs: 50                       # Train for more epochs
+  lr: 1.0e-5                       # Lower LR for fine-tuning pretrained inpainting model (was 1e-4 for scratch)
+  weight_decay: 0.01
+  use_scheduler: true              # Use cosine annealing
+  min_lr: 1.0e-7
+  mixed_precision: fp16            # fp16 to save memory
+  save_every: 5                    # Save every 5 epochs
+  output_dir: /data/group_data/katefgroup/datasets/yjangir/3d_inpaint/checkpoints_flux_inpaint/
+
+validation:
+  validate_every: 5                # Validate every 5 epochs
+  num_samples: 4                   # Generate 4 validation samples
+  num_inference_steps: 20          # Fast inference
+
+logging:
+  seed: 42
+  wandb_project: flux-controlnet-3d-inpainting
+  wandb_run_name: flux-controlnet-whitened-v1
+  wandb_resume: allow
+  print_every: 10
+

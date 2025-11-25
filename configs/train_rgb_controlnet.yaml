@@ -1,0 +1,60 @@
+# ============ SDXL RGB-Conditioned ControlNet Config ============
+# Training ControlNet with pretrained weights, RGB-only conditioning
+# Uses masked RGB image (holes marked white) instead of separate mask channel
+
+train:
+  epochs: 1000                   # Long training for fine-tuning
+  batch_size: 4                  # fits easily at 512x512 with fp16
+  lr: 0.00001                    # 1e-5 for fine-tuning pretrained (use 5e-5 for scratch)
+  weight_decay: 0.01             # weight decay for AdamW
+  use_scheduler: true            # use cosine annealing LR scheduler
+  min_lr: 1.0e-7                 # minimum learning rate
+  num_workers: 8                 # faster data loading
+  save_every: 10                 # save every 10 epochs
+  output_dir: /data/group_data/katefgroup/datasets/yjangir/3d_inpaint/checkpoint_rgb_controlnet/
+  mixed_precision: fp16          # fp16 is optimal for A6000
+
+data:
+  root: ./dataset_bridge         # Training dataset
+  test_root: ./test_data         # Test dataset (optional)
+  image_suffix: _target.png
+  cond_suffix: _cond.png
+  mask_suffix: _mask.png
+  size: 512                      # keep consistent resolution
+  invert_mask: false             # false = 1 is hole, 0 is valid
+
+# Validation Configuration
+validation:
+  validate_every: 5              # validate every 5 epochs
+  num_samples: 4                 # generate 4 validation samples from train set
+  num_test_samples: 4            # generate 4 samples from test set
+  num_inference_steps: 20        # fast inference (20 steps)
+  guidance_scale: 7.5            # classifier-free guidance scale
+
+model:
+  pretrained_model: stabilityai/stable-diffusion-xl-base-1.0
+  scheduler: DDIMScheduler
+  cpu_offload: false             # disable since A6000 has ample VRAM
+  
+  # Pretrained ControlNet (3-channel RGB conditioning)
+  # RGB-only conditioning: masked image with holes marked white
+  # 
+  # Recommended options:
+  #   ✅ diffusers/controlnet-canny-sdxl-1.0     (BEST - detects edges/structure)
+  #   ✅ xinsir/controlnet-union-sdxl-1.0        (multi-task, very robust)
+  #   - diffusers/controlnet-depth-sdxl-1.0     (depth understanding)
+  #   - diffusers/controlnet-scribble-sdxl-1.0  (sketches)
+  #   - null                                     (train from scratch, lr=5e-5)
+  pretrained_controlnet: diffusers/controlnet-canny-sdxl-1.0
+
+logging:
+  print_every: 25                # print loss every N steps
+  seed: 42                       # random seed for reproducibility
+  wandb_project: controlnet-rgb-inpainting
+  wandb_run_name: sdxl-rgb-controlnet-canny
+  wandb_resume: allow
+
+evaluation:  
+  num_inference_steps: 50        # high quality inference for final eval
+  guidance_scale: 7.5
+

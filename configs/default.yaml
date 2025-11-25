@@ -1,0 +1,26 @@
+# ============ SDXL Inpainting Fine-Tune Config ============
+
+train:
+  epochs: 5
+  batch_size: 2
+  lr: 1e-5
+  num_workers: 4
+  save_every: 1                 # save checkpoint every N epochs
+  output_dir: checkpoints
+  mixed_precision: fp16         # "no", "fp16" or "bf16"
+
+data:
+  root: /data/inpaint_finetune_dataset
+  image_suffix: image_target.png
+  cond_suffix: image_cond.png
+  mask_suffix: mask_cond.png
+  size: 512                     # optional resize
+
+model:
+  pretrained_model: stabilityai/stable-diffusion-xl-base-1.0
+  scheduler: DDIMScheduler
+  cpu_offload: true
+
+logging:
+  print_every: 50
+  seed: 42

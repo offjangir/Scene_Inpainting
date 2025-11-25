@@ -1,0 +1,44 @@
+# ============ SDXL Inpainting Fine-tuning Config ============
+# Fine-tuning pretrained SDXL inpainting model on custom 3D scene data
+
+train:
+  epochs: 100                    # Number of training epochs
+  batch_size: 2                  # SDXL is large, use smaller batch size
+  lr: 0.00001                    # 1e-5 for fine-tuning (lower than training from scratch)
+  weight_decay: 0.01             # weight decay for AdamW
+  use_scheduler: true            # use cosine annealing LR scheduler
+  min_lr: 1.0e-7                 # minimum learning rate
+  num_workers: 4                 # data loading workers
+  save_every: 10                 # save every 10 epochs
+  output_dir: ./output/sdxl_inpaint_finetune
+  mixed_precision: fp16          # fp16 for memory efficiency
+  prompt: ""                     # Training prompt (empty for unconditional inpainting)
+
+data:
+  root: ./data_generated         # Training dataset
+  test_root: null                # Test dataset (optional)
+  image_suffix: _target.png
+  cond_suffix: _cond.png
+  mask_suffix: _mask.png
+  size: 1024                     # SDXL optimized for 1024x1024
+  invert_mask: false             # false = 1 is hole, 0 is valid
+
+# Validation Configuration
+validation:
+  validate_every: 5              # validate every 5 epochs
+  num_samples: 4                 # generate 4 validation samples
+  num_inference_steps: 20        # fast inference (20 steps)
+  guidance_scale: 8.0            # classifier-free guidance scale
+
+model:
+  pretrained_model: diffusers/stable-diffusion-xl-1.0-inpainting-0.1
+  scheduler: DDIMScheduler
+  freeze_text_encoders: true     # Keep text encoders frozen (recommended)
+
+logging:
+  print_every: 10                # print loss every N steps
+  seed: 42                       # random seed for reproducibility
+  wandb_project: sdxl-inpainting-finetune
+  wandb_run_name: sdxl-inpaint-3dscenes
+  wandb_resume: allow
+

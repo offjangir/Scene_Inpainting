@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Data directories
+data/
+data1/
+data_generated/
+dataset/
+dataset_*/
+test_data/
+test_inference_output/
+
+# Output directories
+output/
+results/
+results2/
+wandb/
+slurm/output/
+
+# Model checkpoints and weights
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+checkpoints/
+checkpoint_*/
+
+# Large test files
+*.png
+*.jpg
+*.jpeg
+!README.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.venv
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# XFormers (dependency, don't commit)
+xformers/
+

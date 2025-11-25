@@ -129,16 +129,16 @@ def main(cfg_path="configs/train_config.yaml"):
     if cfg["model"]["scheduler"] == "DDIMScheduler":
         pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
 
-    # Freeze the base UNet and VAE
+    # Freeze the base UNet and VAE (keep in fp32 for numerical stability)
     pipe.unet.requires_grad_(False)
     pipe.vae.requires_grad_(False)
     pipe.text_encoder.requires_grad_(False)
     if hasattr(pipe, 'text_encoder_2'):
         pipe.text_encoder_2.requires_grad_(False)
     
-    # Keep everything in fp32 for stability (no mixed precision issues)
-    pipe.unet.to(dtype=torch.float32)
-    pipe.vae.to(dtype=torch.float32)
+    # Convert UNet to fp16 for inference (VAE stays fp32)
+    if cfg["train"]["mixed_precision"] == "fp16":
+        pipe.unet.to(dtype=torch.float16)
 
     # Initialize ControlNet from scratch
     print("🔧 Initializing ControlNet from scratch...")
@@ -150,10 +150,6 @@ def main(cfg_path="configs/train_config.yaml"):
     # Keep ControlNet in fp32 for training stability
     controlnet = controlnet.to(dtype=torch.float32)
     controlnet.train()
-    
-    # Check scheduler prediction type
-    prediction_type = pipe.scheduler.config.prediction_type
-    print(f"📊 Scheduler prediction type: {prediction_type}")
 
     # Optimizer only for ControlNet
     optimizer = torch.optim.AdamW(
@@ -259,20 +255,43 @@ def main(cfg_path="configs/train_config.yaml"):
                     print(f"⚠️ NaN in ControlNet mid_block, skipping batch.")
                     raise ValueError("NaN in ControlNet output")
 
-                # 4️⃣ Apply ControlNet to UNet (all in fp32 for stability)
-                # UNet forward pass (with gradients from ControlNet residuals)
-                model_pred = pipe.unet(
-                    noisy_latents,
-                    timesteps,
-                    encoder_hidden_states=torch.zeros(
+                # 4️⃣ Apply ControlNet to UNet
+                # Convert to fp16 for UNet inference
+                if cfg["train"]["mixed_precision"] == "fp16":
+                    noisy_latents_fp16 = noisy_latents.to(dtype=torch.float16)
+                    down_block_res_samples = [d.to(dtype=torch.float16) for d in down_block_res_samples]
+                    mid_block_res_sample = mid_block_res_sample.to(dtype=torch.float16)
+                    added_cond_kwargs_fp16 = {
+                        "text_embeds": added_cond_kwargs["text_embeds"].to(dtype=torch.float16),
+                        "time_ids": added_cond_kwargs["time_ids"].to(dtype=torch.float16)
+                    }
+                    encoder_hidden_states_fp16 = torch.zeros(
+                        (latents.shape[0], 77, pipe.unet.config.cross_attention_dim),
+                        device=device,
+                        dtype=torch.float16
+                    )
+                else:
+                    noisy_latents_fp16 = noisy_latents
+                    added_cond_kwargs_fp16 = added_cond_kwargs
+                    encoder_hidden_states_fp16 = torch.zeros(
                         (latents.shape[0], 77, pipe.unet.config.cross_attention_dim),
                         device=device,
                         dtype=torch.float32
-                    ),
-                    added_cond_kwargs=added_cond_kwargs,
+                    )
+                
+                # UNet forward pass (with gradients from ControlNet residuals)
+                noise_pred = pipe.unet(
+                    noisy_latents_fp16,
+                    timesteps,
+                    encoder_hidden_states=encoder_hidden_states_fp16,
+                    added_cond_kwargs=added_cond_kwargs_fp16,
                     down_block_additional_residuals=down_block_res_samples,
                     mid_block_additional_residual=mid_block_res_sample,
                 ).sample
+                
+                # Convert back to fp32 for loss computation
+                if cfg["train"]["mixed_precision"] == "fp16":
+                    noise_pred = noise_pred.to(dtype=torch.float32)
 
                 # 5️⃣ Compute loss
                 if not torch.isfinite(noise_pred).all():
