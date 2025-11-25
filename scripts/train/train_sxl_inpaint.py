@@ -16,7 +16,16 @@ Architecture:
 This follows the ControlNet paradigm (like Canny edge) but for inpainting masks.
 """
 
-import os, yaml, torch
+import os
+import sys
+
+# Add project root to path for imports
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+import yaml
+import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from PIL import Image

@@ -22,16 +22,37 @@ This project implements ControlNet-based inpainting models that can fill in miss
 │   ├── train_sd15_inpaint.yaml  # SD 1.5 training config
 │   ├── train_sdxl_inpaint.yaml  # SDXL training config
 │   └── ...
+├── scripts/                    # Executable scripts
+│   ├── train/                  # Training scripts
+│   │   ├── train_sd15_inpaint.py
+│   │   ├── train_sxl_inpaint_v2.py
+│   │   ├── train_sxl_inpaint.py
+│   │   ├── train_sdxl_inpaint.py
+│   │   ├── train_flux.py
+│   │   └── ...
+│   ├── inference/              # Inference scripts
+│   │   ├── inference.py        # SDXL inference
+│   │   ├── inference_sd15_inpaint.py
+│   │   ├── quick_inference_test.py
+│   │   └── ...
+│   └── shell/                  # Shell scripts
+│       ├── run_inference.sh
+│       ├── sbatch.bash
+│       └── convert_videos_to_gifs.sh
+├── tests/                      # Test scripts
+│   └── test_inference.py
+├── tools/                      # Utility scripts
+│   └── log_results_to_wandb.py
 ├── utils/                      # Shared utilities
 │   ├── env_setup.py            # Environment and cache setup
 │   ├── dataset.py              # Shared dataset class
-│   └── __init__.py
-├── train_sd15_inpaint.py       # SD 1.5 training script
-├── train_sxl_inpaint_v2.py     # SDXL training script (v2)
-├── inference.py                 # SDXL inference script
-├── inference_sd15_inpaint.py   # SD 1.5 inference script
-├── run_inference.sh            # Batch inference script
-├── sbatch.bash                  # SLURM job submission script
+│   └── ...
+├── model/                      # Model definitions
+│   ├── controlnet.py
+│   ├── diffusion_unet.py
+│   └── loss.py
+├── dataloader/                 # Data loading utilities
+│   └── ...
 └── README.md                    # This file
 ```
 
@@ -95,7 +116,7 @@ dataset/
 Train or fine-tune a ControlNet model on SD 1.5:
 
 ```bash
-python train_sd15_inpaint.py configs/train_sd15_inpaint.yaml
+python scripts/train/train_sd15_inpaint.py configs/train_sd15_inpaint.yaml
 ```
 
 **Key Features**:
@@ -108,7 +129,7 @@ python train_sd15_inpaint.py configs/train_sd15_inpaint.yaml
 Train a ControlNet model on SDXL:
 
 ```bash
-python train_sxl_inpaint_v2.py configs/train_config.yaml
+python scripts/train/train_sxl_inpaint_v2.py configs/train_config.yaml
 ```
 
 **Key Features**:
@@ -149,7 +170,7 @@ model:
 For cluster training, use the provided SLURM script:
 
 ```bash
-sbatch sbatch.bash
+sbatch scripts/shell/sbatch.bash
 ```
 
 Edit `sbatch.bash` to customize GPU requirements, time limits, and environment setup.
@@ -160,7 +181,7 @@ Edit `sbatch.bash` to customize GPU requirements, time limits, and environment s
 
 **SDXL**:
 ```bash
-python inference.py \
+python scripts/inference/inference.py \
     --controlnet_path output/controlnet_final \
     --mask_path path/to/mask.png \
     --cond_path path/to/conditioning.png \
@@ -172,7 +193,7 @@ python inference.py \
 
 **SD 1.5**:
 ```bash
-python inference_sd15_inpaint.py \
+python scripts/inference/inference_sd15_inpaint.py \
     --controlnet_path output/controlnet_final \
     --mask_path path/to/mask.png \
     --cond_path path/to/conditioning.png \
@@ -184,7 +205,7 @@ python inference_sd15_inpaint.py \
 Process entire directories:
 
 ```bash
-python inference.py \
+python scripts/inference/inference.py \
     --controlnet_path output/controlnet_final \
     --input_dir dataset/test \
     --output_dir output/results \
@@ -196,7 +217,7 @@ python inference.py \
 
 Or use the provided script:
 ```bash
-bash run_inference.sh
+bash scripts/shell/run_inference.sh
 ```
 
 ### Inference Parameters
@@ -223,6 +244,32 @@ bash run_inference.sh
 - **ControlNet**: Trained from scratch
 - **Input**: Mask only (1 channel, padded to 4)
 - **Conditioning**: Mask for ControlNet, masked image latents for UNet
+
+## Results
+
+### Training Loss
+
+The following plot shows the training loss progression for SDXL ControlNet training:
+
+![Training Loss](loss.png)
+
+### Sample Visualizations
+
+The model generates validation samples during training. Example outputs from different training epochs:
+
+**Epoch 175:**
+
+| Sample 0 | Sample 1 | Sample 2 | Sample 3 |
+|:---------:|:---------:|:---------:|:---------:|
+| ![Epoch 175 Sample 0](docs/images/epoch_175_sample_0.png) | ![Epoch 175 Sample 1](docs/images/epoch_175_sample_1.png) | ![Epoch 175 Sample 2](docs/images/epoch_175_sample_2.png) | ![Epoch 175 Sample 3](docs/images/epoch_175_sample_3.png) |
+
+**Epoch 430:**
+
+| Sample 0 | Sample 1 | Sample 2 | Sample 3 |
+|:---------:|:---------:|:---------:|:---------:|
+| ![Epoch 430 Sample 0](docs/images/epoch_430_sample_0.png) | ![Epoch 430 Sample 1](docs/images/epoch_430_sample_1.png) | ![Epoch 430 Sample 2](docs/images/epoch_430_sample_2.png) | ![Epoch 430 Sample 3](docs/images/epoch_430_sample_3.png) |
+
+These visualizations are automatically saved in `{output_dir}/epoch_{N}_vis/` during training and logged to WandB for monitoring.
 
 ## Checkpoints
 
@@ -277,14 +324,31 @@ logging:
 
 ## File Descriptions
 
+### Training Scripts (`scripts/train/`)
 - `train_sd15_inpaint.py`: SD 1.5 training with pretrained ControlNet fine-tuning
 - `train_sxl_inpaint_v2.py`: SDXL training from scratch (mask-only)
+- `train_sxl_inpaint.py`: SDXL training (alternative version)
+- `train_sdxl_inpaint.py`: SDXL inpainting fine-tuning
+- `train_flux.py`: Flux model training
+- `train.py`, `train_1.py`: Additional training scripts
+
+### Inference Scripts (`scripts/inference/`)
 - `inference.py`: SDXL inference script with batch support
 - `inference_sd15_inpaint.py`: SD 1.5 inference script
 - `quick_inference_test.py`: Quick test script for single samples
-- `log_results_to_wandb.py`: Utility to log inference results to WandB
+- `sdxl_inference.py`: SDXL inference utilities
+- `flux_inference.py`: Flux model inference
+
+### Shell Scripts (`scripts/shell/`)
 - `sbatch.bash`: SLURM job submission script
 - `run_inference.sh`: Batch inference automation script
+- `convert_videos_to_gifs.sh`: Video conversion utility
+
+### Tools (`tools/`)
+- `log_results_to_wandb.py`: Utility to log inference results to WandB
+
+### Tests (`tests/`)
+- `test_inference.py`: Test script for inference pipeline
 
 ## Citation
 

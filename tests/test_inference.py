@@ -6,7 +6,13 @@ This script helps verify that your trained model can be loaded and used for infe
 
 import os
 import sys
-from inference import InpaintingInference
+
+# Add project root to path for imports
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from scripts.inference.inference import InpaintingInference
 
 def test_model_loading(controlnet_path):
     """Test that the model can be loaded successfully."""

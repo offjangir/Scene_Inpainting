@@ -14,7 +14,16 @@ Architecture:
 - Output: Inpainted image
 """
 
-import os, yaml, torch
+import os
+import sys
+
+# Add project root to path for imports
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+import yaml
+import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from PIL import Image
@@ -25,7 +34,6 @@ import random
 import numpy as np
 import wandb
 import math
-import sys
 
 os.environ["HF_HOME"] = "/scratch/yjangir/hf_cache"
 os.environ["HUGGINGFACE_HUB_CACHE"] = "/scratch/yjangir/hf_cache"

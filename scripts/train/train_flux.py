@@ -1,4 +1,16 @@
-import os, yaml, torch, random, math, numpy as np
+import os
+import sys
+
+# Add project root to path for imports
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+import yaml
+import torch
+import random
+import math
+import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from PIL import Image
@@ -16,7 +28,6 @@ from diffusers.training_utils import compute_loss_weighting_for_sd3
 from diffusers.utils.torch_utils import is_compiled_module
 
 import wandb
-import os
 # Note: Cache directories are now set in ~/.bashrc
 
 

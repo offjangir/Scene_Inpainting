@@ -38,4 +38,4 @@ echo "Logging output to: $LOGFILE"
 echo "Job started on $(date)" >> "$LOGFILE"
 
 # ----------- Launch training -----------
-python train_sd15_inpaint.py >"$LOGFILE" 2>&1
+python scripts/train/train_sd15_inpaint.py >"$LOGFILE" 2>&1

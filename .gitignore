@@ -34,6 +34,8 @@ checkpoint_*/
 *.jpg
 *.jpeg
 !README.md
+!docs/images/*.png
+!loss.png
 
 # IDE
 .vscode/

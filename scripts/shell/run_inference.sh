@@ -8,7 +8,7 @@
 cd /data/user_data/yjangir/3d_inpainting
 
 # Run inference using the latest SDXL checkpoint
-python inference.py \
+python scripts/inference/inference.py \
   --controlnet_path /data/group_data/katefgroup/datasets/yjangir/3d_inpaint/checkpoint_more_data/controlnet_epoch42 \
   --base_model stabilityai/stable-diffusion-xl-base-1.0 \
   --input_dir /data/user_data/yjangir/3d_inpainting/dataset_gene_warped_test \
