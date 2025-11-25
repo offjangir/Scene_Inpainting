@@ -350,6 +350,11 @@ logging:
 ### Tests (`tests/`)
 - `test_inference.py`: Test script for inference pipeline
 
+## Contributors
+
+- **Yash Jangir** 
+- **Yidi Zhang**
+
 ## Citation
 
 If you use this code, please cite:
@@ -357,7 +362,7 @@ If you use this code, please cite:
 ```bibtex
 @software{3d_inpainting,
   title = {3D Scene Inpainting with ControlNet},
-  author = {Your Name},
+  author = {Jangir, Yash and Zhang, Yidi},
   year = {2024}
 }
 ```
@@ -368,5 +373,5 @@ If you use this code, please cite:
 
 ## Contact
 
-For questions or issues, please open an issue or contact [your email].
+For questions or issues, please open an issue or contact the contributors.
 
