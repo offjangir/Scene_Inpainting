@@ -251,7 +251,7 @@ bash scripts/shell/run_inference.sh
 
 The following plot shows the training loss progression for SDXL ControlNet training:
 
-![Training Loss](loss.png)
+![Training Loss](docs/images/loss.png)
 
 ### Sample Visualizations
 
